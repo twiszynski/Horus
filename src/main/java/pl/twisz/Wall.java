@@ -3,6 +3,7 @@ package pl.twisz;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 public class Wall implements Structure {
 
@@ -45,16 +46,30 @@ public class Wall implements Structure {
         return flattenList;
     }
 
-    // zwraca dowolny element o podanym kolorze
-    @Override
-    public Optional<Block> findBlockByColor(String color) {
-        return getFlattenListOfBlocks(blocks).stream().filter(x -> x.getColor().equals(color)).findAny();
+    // metoda zwraca strumień ze spłaszczona strukturą - nie wlicza obiektów ComponentBlock, a tylko ich składowe typu Block
+    private Stream<Block> getFlattenStreamOfBlocks(List<Block> blocks) {
+        return blocks.stream()
+                .flatMap(block -> {
+                    Stream<Block> flattenStream = Stream.empty();
+                    if (block instanceof CompositeBlock) {
+                        flattenStream = Stream.concat(flattenStream, getFlattenStreamOfBlocks(((CompositeBlock) block).getBlocks()));
+                    } else {
+                        flattenStream = Stream.concat(flattenStream, Stream.of(block));
+                    }
+                    return flattenStream;
+        });
     }
 
-    // zwraca wszystkie elementy z danego materiału
+    // zwraca dowolny element o podanym kolorze - nie bierze pod uwage elementów CompositeBlock, tylko ich składowe Block
+    @Override
+    public Optional<Block> findBlockByColor(String color) {
+        return getFlattenStreamOfBlocks(blocks).filter(x -> x.getColor().equals(color)).findAny();
+    }
+
+    // zwraca wszystkie elementy z danego materiału - nie bierze pod uwage elementów CompositeBlock, tylko ich składowe Block
     @Override
     public List<Block> findBlocksByMaterial(String material) {
-        return getFlattenListOfBlocks(blocks).stream().filter(x -> x.getMaterial().equals(material)).toList();
+        return getFlattenStreamOfBlocks(blocks).filter(x -> x.getMaterial().equals(material)).toList();
     }
 
     //zwraca liczbę wszystkich elementów tworzących strukturę
@@ -65,7 +80,7 @@ public class Wall implements Structure {
 
     //zwraca liczbę wszystkich elementów tworzących strukturę - nie wlicza elementów CompositeBlock
     public int countWithoutComposite() {
-        return getFlattenListOfBlocks(blocks).stream().filter(x -> !(x instanceof CompositeBlock)).toList().size();
+        return getFlattenStreamOfBlocks(blocks).toList().size();
     }
 
 }
